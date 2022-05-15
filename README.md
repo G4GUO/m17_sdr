@@ -16,9 +16,11 @@ make
 
 ###########################################
 
-git clone 
+git clone https://github.com/G4GUO/m17_sdr.git
 
 cd Release
 
 make
+
+
 
