@@ -164,7 +164,7 @@ uint24_t hard_decode_24_bits(float *in){
 	uint24_t word = 0;
 	for( int i = 0; i < 24; i++){
 		word <<= 1;
-		word |= in[i] >= 0.5f ? 1 : 0;
+		word |= in[i] >= 0 ? 1 : 0;
 	}
 	return word;
 }

@@ -20,13 +20,13 @@ void m17_de_correlate_1( uint8_t *in, uint8_t *out, int len){
 }//
 // Soft bits are stored as probabilities where
 // 1.0 means 100% certain it is a one
-// 0.5 means 50% certain
-// 0 means 0% certain
-// to flip a bit subtract its value from 1.0
+// 0   means 50% certain
+// -1 means 0% certain
+// to flip a bit change it's sign
 //
 void m17_de_correlate_1( float *in, float *out, int len){
 	for( int i = 0 ; i < len; i++){
-		out[i] = m_bit_ctab[i%368] ? 1.0 - in[i] : in[i];
+		out[i] = m_bit_ctab[i%368] ? -in[i] : in[i];
 	}
 }
 //

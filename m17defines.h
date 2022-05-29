@@ -5,6 +5,7 @@
 #include "codec2.h"
 
 //#define __TEST__
+//#define __TRACE__
 // Over sample rate
 #define N_OS 10
 // Size of decimating filter in receiver
@@ -37,6 +38,13 @@ typedef struct{
 	uint8_t reserved;
 }M17Type;
 
+typedef struct{
+	uint8_t votes;
+	uint8_t type;
+	uint8_t gerr;
+	float variance;
+}M17Sync;
+
 #define CCT_PACKET   0
 #define CCT_STREAM   1
 #define DATA_DATA    1
@@ -50,9 +58,30 @@ typedef struct{
 #define ENC_SUB      0
 #define CAN_NUM      0
 #define RES_RES      0
+// Frame types
+#define M17_EOT      5
 
 #define FRAME_SYM_LENGTH 192
 #define FRAME_BIT_LEN    384
+//
+// Database info
+//
+typedef struct{
+	char rx_src_add[15];
+	char rx_dest_add[15];
+	char tx_src_add[15];
+	char tx_dest_add[15];
+	uint48_t rx_src;
+	uint48_t rx_dest;
+	uint48_t tx_src;
+	uint48_t tx_dest;
+	uint64_t rx_freq;
+	uint64_t tx_freq;
+    bool listen_flag;
+    bool in_frame;
+    uint32_t g_errors;
+    uint32_t n_frames;
+}M17_Dbase;
 
 typedef struct{
 	float re;
@@ -66,6 +95,7 @@ typedef struct {
 
 // MMI
 void mmi_parse(char *cmd);
+void mmi_load_file(const char *name);
 
 // Lime specific
 int  lime_main(void);
@@ -73,11 +103,50 @@ int  lime_open(void);
 void lime_got_to_duplex(void);
 void lime_got_to_transmit(void);
 void lime_got_to_receive(void);
-void lime_set_freq(uint64_t freq);
+void lime_set_tx_freq(uint64_t freq);
+void lime_set_rx_freq(uint64_t freq);
 void lime_close(void);
 int  lime_transmit_samples( int16_t *in, int len);
 int  lime_receive_samples(int16_t *samples, int len);
+// read the state of the ptt
+bool lime_read_ptt(void);
+// set the ptt to transmit
+void lime_ptt_tx(void);
+// set the ptt to receive
+void lime_ptt_rx(void);
+// Send a carrier
+void m17_tx_rx_ptt_carrier(void);
+// Transmitter level
+void lime_set_tx_gain(float gain);
+// Receiver gain
+void lime_set_rx_gain(double gain);
+double lime_get_rx_gain(void);
 
+uint32_t lime_read_rssi(void);
+
+
+//
+// Generic radio interface
+//
+void radio_open(void);
+void radio_close(void);
+void radio_transmit(void);
+void radio_receive(void);
+void radio_duplex(void);
+bool radio_keyed(void);
+void radio_set_tx_frequency(uint64_t freq);
+void radio_set_rx_frequency(uint64_t freq);
+int  radio_receive_samples( scmplx *s, uint32_t n);
+int  radio_transmit_samples( scmplx *s, uint32_t n);
+void radio_set_tx_gain(float gain);
+void radio_set_rx_gain(float gain);
+void radio_set_afc_on(void);
+void radio_set_afc_off(void);
+void radio_set_freq_correction_factor( double fac);
+void radio_afc(float mean);
+float radio_get_afc_delta(void);
+bool radio_get_afc_status(void);
+void radio_rssi_update(void);
 
 void m17_dsp_process_samples(short *buffer, int samplesRead);
 void m17_dsp_build_rrc_filter(float *filter, float rolloff, int ntaps, int samples_per_symbol);
@@ -108,8 +177,10 @@ void audio_output(int16_t *s, int len);
 void audio_input( int16_t *s, int len);
 void audio_input_flush(void);
 void audio_output_flush(void);
-void audio_open(void);
-void audio_close(void);
+void audio_mic_open(void);
+void audio_mic_close(void);
+void audio_spk_open(void);
+void audio_spk_close(void);
 
 //
 // Puncture / De puncture routines
@@ -218,7 +289,7 @@ void m17_rx_init(void);
 bool m17_rx_lock(void);
 
 // rx parser
-void m17_rx_parse(float *sb, int type);
+void m17_rx_parse(float *sb, uint8_t type);
 
 // rx sync
 int m17_rx_sync_samples( float *in, float *out, int len);
@@ -227,7 +298,7 @@ int m17_sync_check(float *vect, int &type, int &e );
 
 // Tx RX routines
 void m17_tx_rx_init(void);
-void m17_tx_rx_loop(void);
+void *m17_tx_rx_thread(void *arg);
 void m17_tx_rx_set_src_add(const char *add);
 void m17_tx_rx_set_dest_add(const char *add);
 void m17_tx_rx_set_brd_add(void);
@@ -237,6 +308,7 @@ void m17_tx_rx_rx_spkr_audio( uint8_t *data );
 
 void m17_tx_rx_ptt_on(void);
 void m17_tx_rx_ptt_off(void);
+void m17_tx_rx_ptt_duplex(void);
 void m17_tx_rx_enable(void);
 void m17_tx_rx_disable(void);
 
@@ -253,15 +325,52 @@ void eq_restart(void);
 float eq_train_known(float *in, float train);
 float eq_train_unknown( float *in );
 void eq_open(void);
-
+//
 // Database routines
+//
+const M17_Dbase *m17_get_db( void );
 void m17_db_set_src( const char *add );
 void m17_db_set_dst( const char *add );
+void m17_db_set_rx_src( uint48_t src );
+void m17_db_set_rx_dst(  uint48_t dest );
+void m17_db_set_tx_freq(uint64_t freq);
+void m17_db_set_rx_freq(uint64_t freq);
+
 void m17_db_set_brd( void );
 uint48_t m17_db_get_src( void );
 uint48_t m17_db_get_dst( void );
 void m17_db_listen_all( bool flag );
 bool m17_db_is_for_me(uint48_t add );
+// Aquisition of signal
+void m17_aos(void);
+// Loss of signal
+void m17_los(void);
+// Errors detected in stream frame
+void m17_db_golay_errors( uint16_t e );
+// Sequence number of stream frame
+void m17_db_stream_seq_number( uint16_t n);
+// Are we receiving a frame ?
+bool m17_db_in_frame(void);
+
+// PTT access via gpio
+void rpi_tx( void );
+void rpi_rx( void );
+bool rpi_read_ptt(void);
+int rpi_gpio_open(void);
+void rpi_gpio_close(void);
+
+// Ncurses GUI
+void gui_open(void);
+void gui_close(void);
+void gui_update(void);
+void gui_los(void);
+void gui_aos(void);
+void gui_cmd_prompt(void);
+void gui_cmd_resp(const char *resp);
+void gui_help(void);
+void gui_bar(double v);
+void gui_char(char c);
+
 
 #ifdef __TEST__
 // test routines

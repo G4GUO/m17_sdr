@@ -5,7 +5,8 @@
 #include "m17defines.h"
 #include "codec2.h"
 
-static bool m_ptt;
+typedef enum{PTT_RX,PTT_TX,PTT_CA,PTT_DP}PttType;
+static PttType m_ptt;
 static struct CODEC2 *m_codec2;
 static int m_nsam;
 static int16_t m_amicsamples[160];
@@ -24,25 +25,27 @@ void m17_tx_rx_rx_spkr_audio( uint8_t *data ){
 //   printf("\n");
 
 }
-void m17_tx_rx_loop(void){
+void *m17_tx_rx_thread(void *arg){
     uint8_t payload[16];
 
-	while(m_running){
+    m_running = true;
 
-		if( m_ptt == true){
+    while(m_running == true){
+        // Simplex transmit
+		if( m_ptt == PTT_TX){
+		    audio_mic_open();
+		    usleep(120000);// Buffer 6 sound blocks
 		    // Go to transmit
-			audio_input_flush();
-			lime_got_to_duplex();
-		    //lime_got_to_transmit();
-	       // Send preamble
-		    m17_send_carrier();
+		    //radio_duplex();
+		    radio_transmit();
+	        // Send preamble
 		    m17_send_carrier();
 		    m17_send_preamble();
 		    m17_send_preamble();
 		    // Send link setup
 		    m17_send_link_setup_frame(m17_db_get_dst(), m17_db_get_src(), m_type, m_meta);
 		    // Send sub frames of voice, 25 sub frames per sec
-		    while(m_ptt == true ){
+		    while((m_ptt == PTT_TX)&&(m_running == true)){
 			    // Read Audio samples and encode using Codec 2
 			    // Audio blocks are 20 ms but M17 chunks are 40 ms so 2 codec frames per m17 sub frame
 			    audio_input(m_amicsamples, m_nsam);
@@ -51,29 +54,81 @@ void m17_tx_rx_loop(void){
 			    audio_input(m_amicsamples, m_nsam);
 			    codec2_encode(m_codec2, &payload[8], m_amicsamples);
 			    // Send Sub frame
-			    //memset(payload,0x55,16);
 			    m17_send_stream_frame( payload );
-			    int len = lime_receive_samples( (short*)m_rsamples, N_SAMPLES );
-			    m17_dsp_rx( m_rsamples, len);
 		    }
 		    // Send EOT
 		    m17_send_eot();
-		    m17_send_eot();
-		    usleep(100);
+		    usleep(40000);
+		    audio_mic_close();
 		    // Go to receive
-		    lime_got_to_receive();
+		    radio_receive();
         }
 
-		if( m_ptt == false){
-			audio_output_flush();
-		    lime_got_to_receive();
-			while(m_ptt == false){
-			    int len = lime_receive_samples( (short*)m_rsamples, N_SAMPLES );
+		// Full Duplex
+		if( m_ptt == PTT_DP){
+		    audio_mic_open();
+		    audio_spk_open();
+		    usleep(120000);// Buffer 6 sound blocks
+		    // Go to transmit
+		    radio_duplex();
+	        // Send preamble
+		    m17_send_carrier();
+		    m17_send_preamble();
+		    m17_send_preamble();
+		    // Send link setup
+		    m17_send_link_setup_frame(m17_db_get_dst(), m17_db_get_src(), m_type, m_meta);
+		    // Send sub frames of voice, 25 sub frames per sec
+		    while((m_ptt == PTT_DP)&&(m_running == true)){
+			    // Read Audio samples and encode using Codec 2
+			    // Audio blocks are 20 ms but M17 chunks are 40 ms so 2 codec frames per m17 sub frame
+			    audio_input(m_amicsamples, m_nsam);
+			    codec2_encode(m_codec2, &payload[0], m_amicsamples);
+			    // Read Audio samples and encode using Codec 2
+			    audio_input(m_amicsamples, m_nsam);
+			    codec2_encode(m_codec2, &payload[8], m_amicsamples);
+			    // Send Sub frame
+			    m17_send_stream_frame( payload );
+			    // Receive audio
+			    int len = radio_receive_samples( m_rsamples, N_SAMPLES );
 			    m17_dsp_rx( m_rsamples, len);
+				radio_rssi_update();
+		    }
+		    // Send EOT
+		    m17_send_eot();
+		    usleep(40000);
+		    audio_mic_close();
+		    audio_spk_close();
+		    // Go to receive
+		    radio_receive();
+        }
+
+        // Simplex receive
+		if( m_ptt == PTT_RX){
+		    radio_receive();
+		    audio_spk_open();
+			while((m_ptt == PTT_RX)&&(m_running == true)){
+			    int len = radio_receive_samples( m_rsamples, N_SAMPLES );
+			    m17_dsp_rx( m_rsamples, len );
+			    // Throw input samples away
+				radio_rssi_update();
 			}
-		    lime_got_to_transmit();
+		    audio_spk_close();
+		}
+
+        // Simplex transmit carrier
+		if( m_ptt == PTT_CA){
+		    audio_spk_close();
+		    audio_mic_close();
+		    radio_transmit();
+			while((m_ptt == PTT_CA)&&(m_running == true)){
+			    m17_send_carrier();
+			}
 		}
 	}
+    // Close the system
+    audio_spk_close();
+    audio_mic_close();
+    return arg;
 }
 //
 // If listen all is true then it decodes all addresses
@@ -111,24 +166,34 @@ void m17_tx_rx_set_meta(uint8_t *meta){
 // Go to transmit
 //
 void m17_tx_rx_ptt_on(void){
-    m_ptt = true;
+    m_ptt = PTT_TX;
 }
 //
 // Go to receive
 //
 void m17_tx_rx_ptt_off(void){
-    m_ptt = false;
+    m_ptt = PTT_RX;
+}
+//
+// Transmit a carrier
+//
+void m17_tx_rx_ptt_carrier(void){
+    m_ptt = PTT_CA;
+}
+void m17_tx_rx_ptt_duplex(void){
+    m_ptt = PTT_DP;
 }
 void m17_tx_rx_enable(void){
 	m_running = true;
 }
+// Close the system
 void m17_tx_rx_disable(void){
 	m_running = false;
 }
+// Init this module
 void m17_tx_rx_init(void){
 	m_codec2 = codec2_create(CODEC2_MODE_3200);
 	m_nsam   = codec2_samples_per_frame(m_codec2);
 	m17_db_listen_all( false );
-
 }
 

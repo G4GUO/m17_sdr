@@ -5,25 +5,20 @@
 static uint8_t m_lsf[30];
 static uint8_t m_packet[800];
 static int     m_packet_idx;
-static uint48_t m_src_add;
-static uint48_t m_dst_add;
 
 void valid_packet_received(uint8_t *packet, int len){
 
 }
 
 static void valid_lsf_received(uint48_t src_add, uint48_t dst_add, uint8_t *meta, M17Type type){
-	char dst[10];
-	char src[10];
-	decode_call(src_add, src);
-	decode_call(dst_add, dst);
-    printf(" src: %s dest: %s ", src, dst);
-    m_src_add = src_add;
-    m_dst_add = dst_add;
+	m17_db_set_rx_src( src_add );
+	m17_db_set_rx_dst( dst_add );
+    gui_update();
 }
 
 static void data_received(uint8_t *data, int len){
-	if(m17_db_is_for_me( m_dst_add ) == true ){
+	const M17_Dbase *db = m17_get_db();
+	if(m17_db_is_for_me( db->rx_dest ) == true ){
 	    m17_tx_rx_rx_spkr_audio( &data[0] );
 	    m17_tx_rx_rx_spkr_audio( &data[len/2]);
 	}
@@ -99,11 +94,11 @@ void decode_stream_frame(float *sb){
 	float so[2][368];
 	uint24_t gw[4];
 	uint12_t w[4];
-	uint8_t lich[6];
-	uint8_t bits[148];
-	uint8_t pld[19];
+	uint8_t  lich[6];
+	uint8_t  bits[148];
+	uint8_t  pld[19];
 	uint16_t fn;
-	int e;
+	uint16_t e;
 
 	m17_de_correlate_1( sb, sb,    368);
 	m17_de_interleave(  sb, so[0], 368);
@@ -117,10 +112,14 @@ void decode_stream_frame(float *sb){
 	e += m_17_golay_decode( gw[1], w[1] );
 	e += m_17_golay_decode( gw[2], w[2] );
 	e += m_17_golay_decode( gw[3], w[3] );
+	// Report number of errors
+	m17_db_golay_errors( e );
+#ifdef __TRACE__
 	printf(" Golay errors %d ",e);
+#endif
 	// Pack into an 8 bit array 6 bytes long
 	pack_12_to_8_x4x6( w, lich);
-	update_lich(lich);
+	update_lich( lich );
 	// Now do the convolutional bits
 	// de puncture
 	m17_de_punc_p2(&so[0][96], so[1], 296);
@@ -129,7 +128,8 @@ void decode_stream_frame(float *sb){
 	// Pack bits into byte array
 	pack_1_to_8(&bits[1], pld, 144);// discard 4 tail bits ???????
 	// Extract seq
-     pack_8_to_16( pld, fn);
+    pack_8_to_16( pld, fn);
+    m17_db_stream_seq_number( fn);
 //     printf("FN %d \n",fn);
      // Point to start of data
      uint8_t *data = &pld[2];
@@ -159,10 +159,12 @@ void decode_bert_frame(float *sb){
 //
 // Parse an incoming frame of symbols
 //
-void m17_rx_parse(float *s, int type){
+void m17_rx_parse(float *s, uint8_t type){
 	float sb[384];// soft bits
 	//float m_f_sb[384];// soft bits
-printf("Type: %d ",type);
+#ifdef __TRACE__
+    printf("Type: %d ",type);
+#endif
 	switch(type){
 	case 0:
 		// Preamble
@@ -193,5 +195,7 @@ printf("Type: %d ",type);
 	default:
 		break;
 	}
+#ifdef __TRACE__
 	printf("\n");
+#endif
 }

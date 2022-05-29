@@ -15,7 +15,7 @@ static float m_acc;
 
 // Radio specific interface
 void m17_mod_tx(scmplx *s, int len){
-	lime_transmit_samples((short *)s, len);
+	radio_transmit_samples(s, len);
 }
 
 static void mod_fsk(float *s, int len){

@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lLimeSuite -lcodec2 -lpulse-simple
+LIBS := -lLimeSuite -lpthread -lcodec2 -lpulse-simple
 

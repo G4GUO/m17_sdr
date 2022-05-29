@@ -5,6 +5,7 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
 ../audio_io.cpp \
+../gui.cpp \
 ../lime.cpp \
 ../m17_bit_utils.cpp \
 ../m17_conv.cpp \
@@ -25,10 +26,13 @@ CPP_SRCS += \
 ../m17_tx_routines.cpp \
 ../m17_tx_rx.cpp \
 ../main.cpp \
-../mmi.cpp 
+../mmi.cpp \
+../radio.cpp \
+../rpi_gpio.cpp 
 
 OBJS += \
 ./audio_io.o \
+./gui.o \
 ./lime.o \
 ./m17_bit_utils.o \
 ./m17_conv.o \
@@ -49,10 +53,13 @@ OBJS += \
 ./m17_tx_routines.o \
 ./m17_tx_rx.o \
 ./main.o \
-./mmi.o 
+./mmi.o \
+./radio.o \
+./rpi_gpio.o 
 
 CPP_DEPS += \
 ./audio_io.d \
+./gui.d \
 ./lime.d \
 ./m17_bit_utils.d \
 ./m17_conv.d \
@@ -73,14 +80,16 @@ CPP_DEPS += \
 ./m17_tx_routines.d \
 ./m17_tx_rx.d \
 ./main.d \
-./mmi.d 
+./mmi.d \
+./radio.d \
+./rpi_gpio.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
 %.o: ../%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	g++ -I/home/charles/gits/codec2/src -I/home/charles/gits/codec2/build -O3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
+	g++ -I/usr/local/include/codec2 -O3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
