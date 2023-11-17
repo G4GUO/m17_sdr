@@ -1,0 +1,13 @@
+# cat config.txt
+# Test Config
+#mode radio
+mode gate
+#fc 0.999984574
+rf 146400000
+tf 146400000
+#rg 0.5
+tg 1.0
+sa g4guo
+ba
+ga g4guo g
+conn M17 C

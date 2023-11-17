@@ -1,69 +1,51 @@
-################################################################################
-# Automatically-generated file. Do not edit!
-################################################################################
 
--include ../makefile.init
+# Compiler
+CC = gcc
 
-RM := rm -rf
+# Compiler flags
+CFLAGS = -Wall -Wextra -g -I /usr/local/include/codec2
 
-# All of the sources participating in the build are defined here
--include sources.mk
--include subdir.mk
-ifneq ($(MAKECMDGOALS),clean)
-ifneq ($(strip $(C++_DEPS)),)
--include $(C++_DEPS)
-endif
-ifneq ($(strip $(CC_DEPS)),)
--include $(CC_DEPS)
-endif
-ifneq ($(strip $(CPP_DEPS)),)
--include $(CPP_DEPS)
-endif
-ifneq ($(strip $(CXX_DEPS)),)
--include $(CXX_DEPS)
-endif
-ifneq ($(strip $(C_DEPS)),)
--include $(C_DEPS)
-endif
-ifneq ($(strip $(C_UPPER_DEPS)),)
--include $(C_UPPER_DEPS)
-endif
-endif
+# Source files
+SRCS = $(wildcard *.cpp)
 
--include ../makefile.defs
+# Object files
+OBJS = $(SRCS:.cpp=.o)
 
-OPTIONAL_TOOL_DEPS := \
-$(wildcard ../makefile.defs) \
-$(wildcard ../makefile.init) \
-$(wildcard ../makefile.targets) \
+# Linker flags
+LIBS = -lcodec2 -lLimeSuite -liio -lncurses -lpthread -lpulse-simple -lm -lrt -lstdc++
 
+# Executable
+TARGET = m17gismo
 
-BUILD_ARTIFACT_NAME := m17gismo
-BUILD_ARTIFACT_EXTENSION :=
-BUILD_ARTIFACT_PREFIX :=
-BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
+# Default target
+all: $(TARGET)
 
-# Add inputs and outputs from these tool invocations to the build variables 
+# Compile source files into object files
+%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# All Target
-all: main-build
+# Link object files into executable
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
-# Main-build Target
-main-build: m17gismo
-
-# Tool invocations
-m17gismo: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
-	@echo 'Building target: $@'
-	@echo 'Invoking: GCC C++ Linker'
-	g++  -o "m17gismo" $(OBJS) $(USER_OBJS) $(LIBS) -lLimeSuite -liio -lncurses -lpthread -lcodec2 -lpulse-simple
-	@echo 'Finished building target: $@'
-	@echo ' '
-
-# Other Targets
+# Clean the project
 clean:
-	-$(RM) m17gismo
-	-@echo ' '
+	rm -f $(OBJS) $(TARGET)
 
-.PHONY: all clean dependents main-build
+# Executable
+TARGET = m17gismo
 
--include ../makefile.targets
+# Default target
+all: $(TARGET)
+
+# Compile source files into object files
+%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Link object files into executable
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+
+# Clean the project
+clean:
+	rm -f *.o 
