@@ -32,27 +32,15 @@ static float m_work[N_SAMPLES*2];
 // 0.5 = 50% (puncture value)
 // 0   = 0%
 //
-void m17_dsp_demap_symbol_old(float in, float mag, float *out){
+void m17_dsp_demap_symbol(float in, float mag, float *out){
 	// Normalise in relation to sync header
 	float m;
 	m = in*mag;
 
-	if(m > 0){
-		// limit the value
-		if(m > 1.0) m = 1.0;
-		out[0] = (-m/2)+0.5;
-		m = m - 0.666;
-		out[1] = (3*m/2)+0.5;
-	}else{
-		// limit the value
-		if(m < -1.0) m = -1.0;
-		out[0] = (-m/2)+0.5;
-		m = m + 0.666;
-		out[1] = (3*m/2)+0.5;
-	}
-	printf("in: %f out: %f %f\n",in,out[0],out[1]);
+	out[0] = -m;
+	out[1] = (fabs(m) - 0.6666);
 }
-void m17_dsp_demap_symbol(float in, float cor, float *out){
+void m17_dsp_demap_symbol_old(float in, float cor, float *out){
 	// Normalise in relation to sync header
 	float m,f0,f1;
 
@@ -195,6 +183,7 @@ int dsp_arctan_disc(fcmplx *in, float *out, int len){
 	}
 	// Calculate the DC offset
 	offset = offset/len;
+	radio_afc(offset);
     // Remove the DC
 	for( int i = 0; i < idx; i++){
 		out[i] = out[i] - offset;
@@ -223,6 +212,7 @@ static int dsp_arctan_disc2(fcmplx *in, float *out, int len){
 	}
 	// Calculate the DC offset
 	offset = offset/len;
+	radio_afc(offset);
     // Remove the DC
 	for( int i = 0; i < idx; i++){
 		out[i] = out[i] - offset;
@@ -269,6 +259,7 @@ void dsp_pll_disc( short *in ){
 int dsp_pll_disc( fcmplx *in, float *out, int len ){
 	static int count;
 	float val,re,im,rv,iv,cv,sv;
+	float offset = 0;
 	int idx = 0;
 	for( int i = 0; i < len; i++){
 	    cv  = cos(m_z);
@@ -280,6 +271,7 @@ int dsp_pll_disc( fcmplx *in, float *out, int len ){
 		val = re + im;
 		count = (1+count)%5;
 		if(count == 0) out[idx++] = val;
+		offset += val;
 		m_z += val * K;
 	}
 	// Correct for any overflow in the accumulator
@@ -289,10 +281,11 @@ int dsp_pll_disc( fcmplx *in, float *out, int len ){
 	m_z = m_z*2.0*M_PI;
 
 	// Calculate the DC offset
-	//float offset = dsp_average(out,idx);
+	offset = offset / len;
+	radio_afc(offset);
     // Remove the DC
 	for( int i = 0; i < idx; i++){
-		//out[i] = out[i] - offset;
+		out[i] = out[i] - offset;
 	}
 	return idx;
 }
@@ -321,7 +314,7 @@ void m17_dsp_build_rrc_filter(float *filter, float rolloff, int ntaps, int sampl
 	}
 }
 //
-// Filter program that takes advantage of the zero coefficients in a halfband filter
+// Filter program that takes advantage of the zero coefficients in a half band filter
 //
 void m17_halfband_filter(scmplx *in, scmplx *out, int16_t *coffs, int flen, int len) {
 	int32_t real, imag;
@@ -384,6 +377,35 @@ int m17_dsp_compress_hbf(float *in, int n) {
 	}
 	return idx;
 }
+void m17_dsp_float_to_short(float *in, int16_t *out, int len){
+	for( int i = 0; i < len; i++){
+		out[i] = (int16_t)(in[i]*0x7FFF);
+	}
+}
+
+//
+// NCO and complex mixer for shifting the frequency (samples in place)
+// Used for AFC
+//
+static void dsp_nco_mixer(fcmplx *in, float delta, int len){
+	static double acc;
+	for( int i = 0; i < len; i++){
+	    float c = cos(acc);
+		float s = sin(acc);
+		acc += delta;
+		float re = (in[i].re * c) - (in[i].im * s);
+		float im = (in[i].re * s) + (in[i].im * c);
+	    in[i].re = re;
+	    in[i].im = im;
+	}
+	// Correct for any overflow in the accumulator
+	acc = acc/(2.0*M_PI);
+	double ip;
+	acc = modf(acc,&ip);
+	acc = acc*2.0*M_PI;
+	// Test for NaN
+	if(acc != acc) acc = 0;
+}
 //
 // Hard limit the signal
 //
@@ -439,17 +461,15 @@ void m17_dsp_display_coffs(float *in, int len){
 void m17_dsp_rx(scmplx *in, int len){
 	fcmplx  tempa[N_SAMPLES];
 	float   tempd[N_SAMPLES/5];
-	float   tempc[N_SAMPLES/5];
+	float   tempc[N_SAMPLES/2];// larger than required to cope with bit slips
 	int n;
 	//dsp_pll_disc(in);
 	dsp_short_to_float( in, tempa, len );
+	if(radio_get_afc_status() == true ) dsp_nco_mixer(tempa, radio_get_afc_delta(), len);
 	dsp_limit( tempa, len);
-
     // Run the discriminator
     //n = dsp_pll_disc(tempa, tempd, len);
-	//float * ds = m17_dsp_update_buffer( m_decb, DF5_FN, N_SAMPLES);
 	n = dsp_arctan_disc2( tempa, tempd, len );
-	//n = m17_dsp_decimating_filter(m_decb, tempd, m_df5w, 5, DF5_FN, N_SAMPLES);
 	// do the symbol tracking
 	n = m17_rx_sync_samples( tempd, tempc, n );
 	m17_rx_symbols( tempc, n);
@@ -469,7 +489,7 @@ void m17_dsp_init(void){
     //m17_dsp_set_filter_gain(temp, 1.0, 1, HB_FN);
     //int len = m17_dsp_compress_hbf(&temp[HB_FN/2],HB_FN/2);
 //    m17_dsp_display_coffs(&temp[HB_FN/2], len);
-	//dsp_float_to_short(&temp[HB_FN/2], m_hbw, len);
+//	dsp_float_to_short(&temp[HB_FN/2], m_hbw, len);
 /*
 	// Build 5x decimating filter (used on the output of the discriminator
     m17_dsp_build_lpf_filter(m_df5w, 0.2f,  DF5_FN);

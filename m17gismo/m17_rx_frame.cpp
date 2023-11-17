@@ -36,13 +36,15 @@ float find_variance( float *in, int len ){
 		}
 	}
 	v = (mmax-mmin)/mmax;
+	// NaN removal
+	if(v != v ) v = 1.0;
 //	printf("var: %f\n",v);
 	return v;
 }
 //
 // correlate against sync vectors
 //
-int m17_sync_check(float *vect, int &type, int &e ){
+void m17_sync_check(float *vect, M17Sync *sync ){
     float sums[6];
     sums[0] = vect[0]*sframe[0][0];
     sums[1] = vect[0]*sframe[1][0];
@@ -58,7 +60,7 @@ int m17_sync_check(float *vect, int &type, int &e ){
 	    sums[4] += vect[i]*sframe[4][i];
 	    sums[5] += vect[i]*sframe[5][i];
     }
-    float var = find_variance( vect, 8 );
+    sync->variance = find_variance( vect, 8 );
     //
     // Find the maximum likely vector
     //
@@ -70,24 +72,34 @@ int m17_sync_check(float *vect, int &type, int &e ){
 		    nmax = i;
 	    }
     }
-    type = nmax;
+    sync->type = nmax;
     // We know the most likely sync do a vote
-    e = 0;
+    sync->votes = 0;
     for( int i = 0; i < 8; i++){
-        if(vect[i]*sframe[nmax][i] < 0 ) e++;
+        if(vect[i]*sframe[nmax][i] < 0 ) sync->votes++;
     }
-	//printf("err: %d\n",e);
-//    printf("var: %f\n",var);
-    // Ideally the variance would be zero
-    if( var > 0.2 ) e++;
-    // Decide whether we have a potential frame start
-    if( e == 0 ){
-//        if(nmax != 0) printf("V %d %d\n",errors,nmax);
-//    	printf("var: %f\n",var);
-    	return 1;
-    }
-    else
-    	return 0;
+}
+bool m17_unlocked_sync_check( M17Sync *sync){
+	if(sync->votes > 0 ){
+		return false;
+	}
+	if((sync->type == 1) || (sync->type == 2) || (sync->type == 3) || (sync->type == 4)){
+		if( sync->variance < 0.3){
+			return true;
+		}
+	}
+	return false;
+}
+bool m17_locked_sync_check( M17Sync *sync){
+	if(sync->votes > 1 ){
+		return false;
+	}
+	if((sync->type == 1) || (sync->type == 2) || (sync->type == 3) || (sync->type == 4)){
+		if( sync->variance < 0.5){
+			return true;
+		}
+	}
+	return false;
 }
 static float m_sync[8];
 
@@ -107,46 +119,54 @@ static void reset_sync(void){
 //
 // Functions below here are globally visible
 //
-#define N_FERROR 4
+#define N_FERROR 5
 //
 // New symbol received
 //
 void m17_rx_sym(float sym){
-	int e;
-	int type;
+	M17Sync sync;
 	if( m_flock == true ){
 		// In lock wait until frame received
 		m_f_sym[m_fclk] = sym;
 		m_fclk = (m_fclk + 1)%FRAME_SYM_LENGTH;
+
 		if(m_fclk == 0){
 			// See what type of frame we have received
-			if(m17_sync_check( m_f_sym, type, e )){
-			    m17_rx_parse(  m_f_sym, type );
-				m_frame_errors = 0;
+			m17_sync_check( m_f_sym, &sync );
+			if(sync.type == M17_EOT){
+			    m_flock = false;
+			    reset_sync();
+			    m17_los();
 			}else{
-				m_frame_errors++;
-				if(m_frame_errors > N_FERROR ){
-					m_flock = false;
-					reset_sync();
-				}else{
-			        m17_rx_parse( m_f_sym, type );
-				}
+			    if(m17_locked_sync_check( &sync ) == true){
+			        m17_rx_parse(  m_f_sym, sync.type );
+				    m_frame_errors = 0;
+			    }else{
+				    m_frame_errors++;
+				    if( m_frame_errors > N_FERROR ){
+					    m_flock = false;
+					    reset_sync();
+					    m17_los();
+				    }else{
+			            m17_rx_parse( m_f_sym, sync.type );
+				    }
+			    }
 			}
 		}
 	}else{
 		// Not in lock hunt for sync
 		update_sync(sym);
-		if(m17_sync_check( m_sync, type, e )){
+		m17_sync_check( m_sync, &sync );
+		if(m17_unlocked_sync_check( &sync ) == true){
 			// Potential sync
 			// Set the clock to point to the first symbol after the sync
-			// Signal frame lock, ignore a preamble
-			if((type == 1) || (type == 2)){
-				// copy the received sync to the start of the frame
-				copy_sync();
-				m_fclk = 8;
-				m_frame_errors = 0;
-				m_flock = true;
-			}
+			// Signal frame lock
+			// copy the received sync to the start of the frame
+			copy_sync();
+			m_fclk = 8;
+			m_frame_errors = 0;
+			m_flock = true;
+			m17_aos();
 		}
 	}
 }

@@ -40,20 +40,34 @@ void sync_update( float sum, float dif){
 	if( dif > 0 ) m_thr++;
 	if( dif < 0 ) m_thr--;
 }
-void m17_sync_adjust( int thresh ){
+static int m_idx;
+
+void m17_sync_adjust( int thresh, float *out ){
 	if( m_thr > thresh ){
 		// Move the sync point forwards (mod NF)
 		m_index = (m_index+1)%NF;
 		m_thr = 0;
+#ifdef __TRACE__
 		printf("Sync + %d\n",m_index);
-	    if( m_index == 0 )m_clk = 1;
+#endif
+	    if( m_index == 0 ){
+	    	m_clk = 1;
+	    	//bit slip
+	    	out[m_idx++] = 0;// Set to unknown
+	    }
 	}
 	if( m_thr < -thresh ){
 		m_thr = 0;
 		// Move the sync point backwards (mod NF)
 		m_index = (m_index+NF-1)%NF;
+#ifdef __TRACE__
 		printf("Sync - %d\n",m_index);
-	    if( m_index == (NF-1) ) m_clk = 1;
+#endif
+	    if( m_index == (NF-1) ){
+	    	m_clk = 1;
+	    	// bit slip
+	    	m_idx--;
+	    }
 	}
 }
 //
@@ -62,26 +76,26 @@ void m17_sync_adjust( int thresh ){
 //
 int m17_rx_sync_samples( float *in, float *out, int len){
 	static float dif,sum;
-	int idx = 0;
+	m_idx = 0;
 	for( int i = 0; i < len; i++){
 		rx_sync_update(in[i]);
 		m_clk = (m_clk+1)%2;
 		if( m_clk ){
 			sum = rx_sync_filter(m_buff, m_mf[m_index], FN);
 			dif = rx_sync_filter(m_buff, m_md[m_index], FN);
-			out[idx++] = sum;
+			out[m_idx++] = sum;
 		   // printf("%+2.4f\n",sum);
 		}else{
 			// Decide whether we need to move the optimum sync index
 			sync_update( sum, dif );
 			// Sync threshold is slower when locked
 			if(m17_rx_lock() == false)
-			    m17_sync_adjust(5);
+			    m17_sync_adjust(10, out);
 			else
-			    m17_sync_adjust(80);
+			    m17_sync_adjust(80, out);
 		}
 	}
-	return idx;
+	return m_idx;
 }
 
 void m17_rx_sync_init(void){

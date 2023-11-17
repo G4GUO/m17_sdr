@@ -97,20 +97,37 @@ int pack_8_to_48(uint8_t *in, uint48_t &out){
 	out |= in[5];
 	return 1;
 }
-
-int pack_8_to_24(uint8_t *in, uint24_t *out){
-	out[0] = in[0];
-	out[0]<<=8;
-	out[0] |= in[1];
-	out[0]<<=8;
-	out[0] |= in[2];
-	return 1;
-}
-int pack_8_to_16(uint8_t *in, uint16_t &out){
+uint48_t pack_8_to_48(uint8_t *in){
+	uint48_t out;
 	out = in[0];
 	out <<=8;
 	out |= in[1];
-	return 1;
+	out <<=8;
+	out |= in[2];
+	out <<=8;
+	out |= in[3];
+	out <<=8;
+	out |= in[4];
+	out <<=8;
+	out |= in[5];
+	return out;
+}
+
+uint24_t pack_8_to_24(uint8_t *in){
+	uint24_t out;
+	out = in[0];
+	out <<=8;
+	out |= in[1];
+	out <<=8;
+	out |= in[2];
+	return out;
+}
+uint16_t pack_8_to_16(uint8_t *in ){
+	uint16_t out;
+	out = in[0];
+	out <<=8;
+	out |= in[1];
+	return out;
 }
 
 int pack_8_to_12_x4(uint8_t *in, uint12_t *out){
@@ -164,14 +181,14 @@ uint24_t hard_decode_24_bits(float *in){
 	uint24_t word = 0;
 	for( int i = 0; i < 24; i++){
 		word <<= 1;
-		word |= in[i] >= 0.5f ? 1 : 0;
+		word |= in[i] >= 0 ? 1 : 0;
 	}
 	return word;
 }
 //
 // Callsign needs to be padded out to 9 characters
 //
-uint48_t encode_call(const char *call){
+uint48_t m17_encode_call(const char *call){
 	uint48_t word = 0;
 	for( int i = 8; i >= 0; i--){
 		word *= 40;
@@ -189,7 +206,7 @@ uint48_t encode_call(const char *call){
 	}
 	return word;
 }
-char *decode_call(uint48_t word, char *call){
+char *m17_decode_call(uint48_t word, char *call){
 	if(word == 0xFFFFFFFFFFFF){
 	    strncpy(call,"BROADCAST",10);
 	    return call;
@@ -239,7 +256,7 @@ M17Type m17_upack_type(uint16_t word){
 void test_encode(void){
 	char text[10];
 	text[9] = 0;
-	uint64_t word = encode_call("G4GUO/P  ");
-	decode_call(word,text);
+	uint64_t word = m17_encode_call("G4GUO/P  ");
+	m17_decode_call(word,text);
 	printf("Call was %s!\n",text);
 }

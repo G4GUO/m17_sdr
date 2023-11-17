@@ -1,0 +1,10 @@
+To access the gpio need to make it a member of the gpio group
+May have to do the following
+# groups
+# sudo groupadd gpio
+# sudo usermod -a -G gpio pi
+
+in /etc/udev/rules.d/99-com.rules
+there should be a line
+
+SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c 'chown -R root:gpio /sys/class/gpio && chmod -R 770 /sys/class/gpio; chown -R root:gpio /sys/devices/virtual/gpio && chmod -R 770 /sys/devices/virtual/gpio'"

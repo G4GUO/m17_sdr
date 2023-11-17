@@ -13,6 +13,11 @@ uint8_t  m_tx_d[5000];// dibits
 uint8_t  m_lich[30];
 uint8_t  m_lich_count;
 uint16_t m_fn;
+// Network packets
+uint8_t  m_net[54];
+uint16_t m_net_sid;
+uint16_t m_net_fn;
+
 //
 // add preamble as dibits
 //
@@ -28,6 +33,7 @@ void m17_send_dibit_array(void){
 	m17_mod_dibits(m_tx_d, m_tx_l);
 	m_tx_l = 0;
 }
+
 int build_lich( uint48_t dest, uint48_t src, M17Type type, uint8_t *meta){
 	int idx = 0;
 	// Add Source address (addresses need padding to 9 octets
@@ -44,6 +50,39 @@ int build_lich( uint48_t dest, uint48_t src, M17Type type, uint8_t *meta){
 	m_lich[idx++] = (crc>>8);
 	m_lich[idx++] = (crc&0xFF);
     return idx;
+}
+void build_lich_to_net(uint48_t dest, uint48_t src, M17Type type, uint8_t *meta){
+	// Format a net frame, no sending
+	m_net[0] = 'M';
+	m_net[1] = '1';
+	m_net[2] = '7';
+	m_net[3] = ' ';
+	m_net_sid = rand()&0xFFFF;
+	m_net[4] = (m_net_sid>>8);
+	m_net[5] = (m_net_sid&0xFF);
+	pack_48_to_8(dest,&m_net[6]);
+	pack_48_to_8(src,&m_net[12]);
+	uint16_t word = m17_pack_type(type);
+	pack_16_to_8(word, &m_net[18]);
+	// Add the meta
+	pack_8_to_8(meta, &m_net[20],14);
+
+}
+
+int build_lich_from_net( uint8_t *net){
+    uint16_t type;
+    uint48_t destin;
+    uint48_t source;
+    uint8_t *meta;
+    M17Type tp;
+    // Skip magic
+    destin = pack_8_to_48(&net[6]);
+    source = pack_8_to_48(&net[12]);
+    type   = pack_8_to_16(&net[18]);
+    meta   = &net[20];// 14 bytes
+    tp     = m17_upack_type(type);
+	int n = build_lich( destin, source, tp, meta);
+	return n;
 }
 //
 // Send an initial link setup frame
@@ -75,6 +114,26 @@ int m17_fmt_add_link_setup_frame(uint8_t *dibits, uint48_t dest, uint48_t src, M
 	idx += pack_1_to_2(tx_bit[1], &dibits[idx], len);
 	// We now have a packed dibit array for transmitting
 	return idx;
+}
+//
+// Add a link setup from a net packet
+//
+int m17_fmt_add_link_setup_frame_fm_net(uint8_t *dibits, uint8_t *net){
+    uint16_t type;
+    uint48_t destin;
+    uint48_t source;
+    uint8_t *meta;
+    M17Type tp;
+    // Skip magic
+    destin = pack_8_to_48(&net[6]);
+    source = pack_8_to_48(&net[12]);
+    type   = pack_8_to_16(&net[18]);
+    meta   = &net[20];// 14 bytes
+
+    tp     = m17_upack_type(type);
+
+    int n = m17_fmt_add_link_setup_frame(dibits, destin, source, tp, meta);
+    return n;
 }
 //
 // Send Sub frame
@@ -126,7 +185,12 @@ int m17_fmt_add_stream_frame(uint8_t *dibits, uint8_t *payload ){
 	//printf("Sub %d\n",idx);
 	return idx;
 }
-
+int m17_fmt_add_stream_frame_fm_net(uint8_t *dibits, uint8_t *net ){
+    uint8_t *pld;
+    pld    = &net[36];// Voice data
+    int n  = m17_fmt_add_stream_frame( dibits, pld );
+    return n;
+}
 //
 // Send a packet sub frame
 // Payload must not exceed 25 bytes
@@ -197,6 +261,9 @@ void scramble_payload(uint8_t *in){
 		in[i] = rand()&0xFF;
 	}
 }
+//
+// Main Interface
+//
 
 void m17_send_preamble(void){
     m17_fmt_add_tx_preamble(m_tx_d);
@@ -207,8 +274,35 @@ void m17_send_link_setup_frame(uint48_t dest, uint48_t src, M17Type type, uint8_
 	m_lich_count = 0;
 	m_fn         = 0;
 
+	gui_save_dest_address(dest);
+	gui_save_src_address(src);
+
 	m17_fmt_add_link_setup_frame(m_tx_d, dest, src, type, meta);
 	m17_mod_dibits(m_tx_d, 192);
+}
+void m17_send_link_setup_frame_to_net(uint48_t dest, uint48_t src, M17Type type, uint8_t *meta){
+	// Format a net frame, no sending
+	m_net_fn = 0;
+	gui_save_dest_address(dest);
+	gui_save_src_address(src);
+	build_lich_to_net(dest, src, type, meta);
+}
+void m17_send_link_setup_frame_fm_net(uint8_t *net){
+	m_lich_count = 0;
+	m_fn  = pack_8_to_16(&net[34]);
+
+	m17_fmt_add_link_setup_frame_fm_net(m_tx_d, net);
+	m17_mod_dibits(m_tx_d, 192);
+}
+
+void m17_send_stream_frame_to_net( uint8_t *payload ){
+	m_net_fn = (m_net_fn+1);
+	pack_16_to_8(m_net_fn, &m_net[34]);
+	memcpy(&m_net[36],payload,16);
+	uint16_t crc = m17_crc_array_encode( m_net, 52 );
+    m_net[52] = (crc>>8);
+    m_net[53] = (crc&0xFF);
+	udp_send(m_net, 54 );
 }
 
 void m17_send_stream_frame( uint8_t *payload ){
@@ -216,6 +310,12 @@ void m17_send_stream_frame( uint8_t *payload ){
 	m17_fmt_add_stream_frame( m_tx_d, payload );
 	m17_mod_dibits(m_tx_d, FRAME_SYM_LENGTH );
 }
+void m17_send_stream_frame_fm_net( uint8_t *net ){
+
+	m17_fmt_add_stream_frame_fm_net( m_tx_d, net );
+	m17_mod_dibits(m_tx_d, FRAME_SYM_LENGTH );
+}
+
 void m17_send_bert_frame( void ){
 	m17_fmt_add_bert_frame( m_tx_d );
 	m17_mod_dibits(m_tx_d, FRAME_SYM_LENGTH );

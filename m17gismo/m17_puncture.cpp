@@ -51,7 +51,7 @@ int m17_de_punc_p1(float *in, float *out, int len){
     	if(P1[i%61])
 		    out[odx++] = in[idx++];
     	else
-    		out[odx++] = 0.5f;
+    		out[odx++] = 0.0f;
     }
     return odx;
 }
@@ -62,7 +62,7 @@ int m17_de_punc_p2(float *in, float *out, int len){
     	if(P2[i%12])
     		out[odx++] = in[idx++];
     	else
-    		out[odx++] = 0.5f;
+    		out[odx++] = 0.0f;
     }
     return odx;
 }
@@ -73,7 +73,7 @@ int m17_de_punc_p3(float *in, float *out, int len){
    	    if(P3[i%8])
     		out[odx++] = in[idx++];
     	else
-    		out[odx++] = 0.5f;
+    		out[odx++] = 0.0f;
     }
     return odx;
 }

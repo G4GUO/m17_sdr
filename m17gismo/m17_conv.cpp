@@ -81,9 +81,9 @@ void m17_conv_new_metric(float m1, float m2){
 	// The values passed are the probability of logic 1
 
 	metric1X  =  m1;
-	metric0X  = 1.0f - m1;
+	metric0X  = -m1;
 	metricX1  =  m2;
-	metricX0  = 1.0f - m2;
+	metricX0  = -m2;
 
 	metric[0] = (metric0X + metricX0);
 	metric[1] = (metric0X + metricX1);
