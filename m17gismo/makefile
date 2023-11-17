@@ -30,22 +30,4 @@ $(TARGET): $(OBJS)
 
 # Clean the project
 clean:
-	rm -f $(OBJS) $(TARGET)
-
-# Executable
-TARGET = m17gismo
-
-# Default target
-all: $(TARGET)
-
-# Compile source files into object files
-%.o: %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Link object files into executable
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
-
-# Clean the project
-clean:
-	rm -f *.o 
+	rm -f m17gismo *.o 
