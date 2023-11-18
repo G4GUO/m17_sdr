@@ -147,7 +147,7 @@ void gui_status_line(void){
 	    attroff(COLOR_PAIR(1));
     }else{
         attrset(COLOR_PAIR(3));
-	    printw("");
+	    printw(" ");
 	    attroff(COLOR_PAIR(3));
     }
     attroff(COLOR_PAIR(3));
@@ -182,9 +182,9 @@ void gui_update(void){
 	// Transmit and Receive Frequencies
     attrset(COLOR_PAIR(1));
     move(RX_FRQ_LINE,0);
-	printw("RX: %lld Hz",db->rx_freq);
+	printw("RX: %lud Hz",db->rx_freq);
     move(TX_FRQ_LINE,0);
-	printw("TX: %lld Hz",db->tx_freq);
+	printw("TX: %lud Hz",db->tx_freq);
 
     gui_cmd_prompt();
     refresh();

@@ -3,7 +3,7 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -Wall -Wextra -g -I /usr/local/include/codec2
+CFLAGS = -Wall -Wextra -g -O3 -I /usr/local/include/codec2
 
 # Source files
 SRCS = $(wildcard *.cpp)

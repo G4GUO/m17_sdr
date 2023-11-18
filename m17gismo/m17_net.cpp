@@ -53,7 +53,7 @@ void net_add_crc(void){
 bool m17_net_new_rx_data(uint16_t frame_id, uint8_t *lich, uint16_t fn, uint8_t *pld){
 
 	// Overwrite the LICH dest callsign i,e with M17-M17
-	char ref[15];
+	char ref[20];
 	uint8_t lh[54];
 	memcpy( lh, lich, 54);
 	sprintf(ref,"%s %c",m_name, m_mod);
