@@ -1,5 +1,6 @@
 # m17_sdr
-SDR software for implementing M17 radio protocol
+SDR software for implementing M17 radio protocol with either a Pluto / Pluto+ or LimeSDR
+
 
 On a fresh RPi install
 
