@@ -1,10 +1,9 @@
 # m17_sdr
+
 SDR software for implementing M17 radio protocol with either a Pluto / Pluto+ or LimeSDR
 
 
-On a fresh RPi install
-
-The following packages need to be installed
+On a fresh RPi install the following packages need to be installed
 
 pulseaudio and libpulse_dev (I needed to use aptitude to install on a RPi)
 
