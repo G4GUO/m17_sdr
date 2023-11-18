@@ -1,6 +1,7 @@
 # m17_sdr
 SDR software for implementing M17 radio protocol
-On a fresh install
+
+On a fresh RPi install
 
 The following packages need to be installed
 
