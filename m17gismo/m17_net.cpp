@@ -372,7 +372,7 @@ bool m17_net_connected(void){
 	return m_ref_active;
 }
 void m17_net_ref_address(char *name){
-	strncpy(name,m_name,11);
+	sprintf(name,"%11s %c",m_name,m_mod);
 }
 int m17_net_open(void)
 {
