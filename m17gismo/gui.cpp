@@ -182,9 +182,9 @@ void gui_update(void){
 	// Transmit and Receive Frequencies
     attrset(COLOR_PAIR(1));
     move(RX_FRQ_LINE,0);
-	printw("RX: %lud Hz",db->rx_freq);
+	printw("RX: %lu Hz",db->rx_freq);
     move(TX_FRQ_LINE,0);
-	printw("TX: %lud Hz",db->tx_freq);
+	printw("TX: %lu Hz",db->tx_freq);
 
     gui_cmd_prompt();
     refresh();
