@@ -5,11 +5,10 @@ SDR software for implementing M17 radio protocol with either a Pluto / Pluto+ or
 
 On a fresh RPi install the following packages need to be installed
 
-pulseaudio and libpulse_dev (I needed to use aptitude to install on a RPi)
+pulseaudio and libpulse_dev 
 
-    sudo apt-get install pulseaudio
-    sudo apt-get install aptitude 
-    sudo aptitude install libpulse_dev 
+    sudo apt-get install pulseaudio 
+    sudo aptitude install libpulse-dev 
 
 ncurses
 
