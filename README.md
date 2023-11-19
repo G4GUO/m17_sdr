@@ -7,24 +7,24 @@ On a fresh RPi install the following packages need to be installed
 
 pulseaudio and libpulse-dev 
 
-    sudo apt-get install pulseaudio 
-    sudo aptitude install libpulse-dev 
+    sudo apt install pulseaudio 
+    sudo apt install libpulse-dev 
 
 ncurses
 
-    sudo apt-get install ncurses_dev
+    sudo apt install ncurses-dev
 
 libiio_dev
 
-    sudo apt-get install libiio_dev
+    sudo apt install libiio-dev
 
 Limesuite
 
-    sudo apt-get install limesuite limesuite_dev
+    sudo apt install limesuite limesuite-dev
 
 cmake
 
-    sudo apt-get install cmake
+    sudo apt install cmake
 
 codec2
 
