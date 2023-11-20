@@ -28,6 +28,9 @@ static bool stop;
 /* static scratch mem for strings */
 static char tmpstr[64];
 static char error_string[256];
+// IP address used by the pluto
+static char m_ip_address[25] = "192.168.2.1";
+
 
 #define FMC_ERROR(expr,error_s) { \
 	if (!(expr)) { \
@@ -73,6 +76,9 @@ void pluto_close(void)
 	}
 }
 
+void pluto_set_ip_address(const char *add){
+	strcpy(m_ip_address,add);
+}
 
 static void handle_sig(int sig)
 {
@@ -266,10 +272,10 @@ int pluto_open( uint32_t block_size ){
 	m_tx_rx_block_size = block_size;
 
 //	if ((m_ctx = iio_create_network_context("192.168.2.1")) == NULL) {
-	if ((m_ctx = iio_create_network_context("192.168.2.1")) == NULL) {
-	    printf("Adalm-Pluto NOT found\n");
+	if ((m_ctx = iio_create_network_context(m_ip_address)) == NULL) {
+	    printf("Adalm-Pluto %s NOT found\n",m_ip_address);
 	    m_pluto_running = false;
-	    return -1;
+	    exit(-1);
 	}
 
 	if (iio_context_get_devices_count(m_ctx) <= 0) {

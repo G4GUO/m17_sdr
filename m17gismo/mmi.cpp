@@ -190,6 +190,7 @@ void mmi_parse(char *cmd){
 			valid = true;
 	    }
 	}
+
 	if(strncmp(token[0],"w",1)==0){
 		gui_update_clear();
 		valid = true;

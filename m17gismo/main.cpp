@@ -10,6 +10,7 @@
 static uint8_t m_meta[16];
 static pthread_t m_m17_threads[2];
 static bool m_running;
+static RadioType m_radio_type;
 //
 // Alternative gets
 //
@@ -55,9 +56,37 @@ void *wait_command_thread(void *arg){
 	}
 	return arg;
 }
+//
+// Command line parameters
+//
 void command_line(int c, char **argv){
+    // Default radio type
+	m_radio_type = RADIO_TYPE_PLUTO;
 
-	for( int i = 1; i < c; i++){
+	for( int i = 1; i < c; i+=2){
+		if(strcmp(argv[i],"-p")==0){
+			if( i + 1 < c){
+		    	pluto_set_ip_address(argv[i+1]);	
+			}
+		}
+
+		if(strcmp(argv[i],"-r")==0){
+			if( i + 1 < c){				
+		    	if(strcmp(argv[i+1],"pluto")==0){
+			    	m_radio_type = RADIO_TYPE_PLUTO;	
+				}
+		    	if(strcmp(argv[i+1],"lime")==0){
+			    	m_radio_type = RADIO_TYPE_LIME;	
+				}
+			}
+		}
+
+		if(strcmp(argv[i],"-h")==0){
+		    printf("-p xxx.xxx.xxx.xxx (IPv4 address of Pluto)\n");	
+		    printf("-r (lime|pluto)\n");	
+		    printf("-h help\n");	
+			exit(0);
+		}
 	}
 }
 int main( int c, char **argv ){
@@ -73,7 +102,10 @@ int main( int c, char **argv ){
 	type.can      = CAN_NUM;    // empty
 	type.reserved = RES_RES;    // not used
 
-	radio_open(RADIO_TYPE_PLUTO);
+    // Load any command line parameters
+	command_line( c, argv );
+
+	radio_open(m_radio_type);
 
 	m17_prbs9_init();
 	m17_crc_init();
@@ -110,9 +142,6 @@ int main( int c, char **argv ){
 	// Initialise the GUI
 	gui_open();
     gui_update();
-
-    // Load any command line parameters
-	command_line( c, argv);
 
 	// Load initialisation
 	mmi_load_file("config.txt");

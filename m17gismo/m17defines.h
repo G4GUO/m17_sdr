@@ -168,6 +168,7 @@ typedef enum{
 
 int  pluto_open( uint32_t block_size );
 void pluto_close(void);
+void pluto_set_ip_address(const char *add);
 int  pluto_start_tx_stream(void);
 void pluto_stop_tx_stream(void);
 int  pluto_start_rx_stream(void);
