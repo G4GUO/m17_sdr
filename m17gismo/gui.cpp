@@ -96,7 +96,6 @@ void gui_help(void){
 	printw("rg           (receive gain  {0 - 1.0})\n");
 	printw("fc           (frequency correction {0.9 - 1.1})\n");
 	printw("afc          (Auto Freq Control {on | off} )\n");
-	printw("pip          (IPv4 address of the Pluto )\n");
 	printw("load file    (load a config file)\n");
 	printw("tx           (transmit in simplex)\n");
 	printw("td           (transmit in duplex)\n");
