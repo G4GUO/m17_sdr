@@ -17,3 +17,5 @@ codec2
     make
     sudo make install
     sudo ldconfig
+
+You set your callsign mode etc in config.txt which is read in at startup
