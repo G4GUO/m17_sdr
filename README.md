@@ -18,4 +18,10 @@ codec2
     sudo make install
     sudo ldconfig
 
+To build the m17 code do the following
+    cd m17_sdr/m17gismo
+    make
+
+To run the code ./m17gismo it defaults to using Pluto for command line help use -h
+
 You set your callsign mode etc in config.txt which is read in at startup
