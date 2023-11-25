@@ -23,6 +23,10 @@ To build the m17 code do the following
     cd m17_sdr/m17gismo
     make
 
-To run the code ./m17gismo it defaults to using Pluto for command line help use -h
+To run the code 
 
-You set your callsign mode etc in config.txt which is read in at startup
+    ./m17gismo 
+
+It defaults to using Pluto, for command line help use -h
+
+To set your callsign, mode etc edit config.txt, which is read in at startup
