@@ -19,6 +19,7 @@ codec2
     sudo ldconfig
 
 To build the m17 code do the following
+    
     cd m17_sdr/m17gismo
     make
 
